@@ -31,7 +31,7 @@ func runDaemon(d time.Duration, c *ueshka.Client, cfg *AppConfig, repo *storage.
 						continue
 					}
 
-					log.Printf("found new operaton  date: %s uid: %s", date, uid)
+					log.Printf("found new operaton date: %s uid: %s", date, uid)
 
 					msg := cfg.gate.RenderMessage(&op)
 					if err := cfg.gate.Send(msg); err != nil {
