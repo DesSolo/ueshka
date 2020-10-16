@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"time"
 	"ueshka/storage"
 	"ueshka/ueshka"
@@ -16,18 +15,19 @@ func genUniqID(date string, o ueshka.Operation) string {
 }
 
 func runDaemon(d time.Duration, c *ueshka.Client, cfg *AppConfig, repo *storage.Memory) {
-	log.Printf("collecting data every %s", d)
+	cfg.Logger.Info("collecting data every", d)
+
 	for {
 		select {
 		case <-time.Tick(1 * time.Hour):
 			today = time.Now().Format("2006-01-02")
 
 		case <-time.Tick(d):
-			log.Println("starting collect after:", d)
+			cfg.Logger.Debug("starting collect after:", d)
 
 			stats, err := c.GetDailyStat(cfg.Ueshka.PupilID, today, today)
 			if err != nil {
-				log.Println("fault get statistic err:", err)
+				cfg.Logger.Warning("fault get statistic err:", err)
 				continue
 			}
 
@@ -38,17 +38,20 @@ func runDaemon(d time.Duration, c *ueshka.Client, cfg *AppConfig, repo *storage.
 						continue
 					}
 
-					log.Printf("found new operaton date: %s uid: %s", date, uid)
+					cfg.Logger.Info(
+						"found new operaton date:", date,
+						"uid:", uid,
+					)
 
 					msg := cfg.gate.RenderMessage(&op)
 					if err := cfg.gate.Send(msg); err != nil {
-						log.Println("fault send message err:", err)
+						cfg.Logger.Info("fault send message err:", err)
 					}
 					repo.Add(uid)
 				}
 			}
 
-			log.Print("end collecting")
+			cfg.Logger.Debug("end collecting")
 		}
 	}
 }

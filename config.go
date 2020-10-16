@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 	"ueshka/gate"
+	"ueshka/logging"
 )
 
 // AppConfig ...
@@ -16,6 +17,7 @@ type AppConfig struct {
 	}
 	GateType      string
 	CheckInterval time.Duration
+	Logger        *logging.Logger
 
 	gate gate.Sender
 }
@@ -23,6 +25,20 @@ type AppConfig struct {
 // NewAppConfigFromEnv ...
 func NewAppConfigFromEnv() *AppConfig {
 	cfg := &AppConfig{}
+
+	cfg.Logger = &logging.Logger{}
+
+	ll := getEnvOrString("LOG_LEVEL", "info")
+
+	switch ll {
+	case "info":
+		cfg.Logger.Level = logging.Info
+	case "debug":
+		cfg.Logger.Level = logging.Debug
+	default:
+		log.Fatalf("logging type \"%s\" not supported", ll)
+	}
+
 	cfg.Ueshka.VersionAPI = getEnvOrString("UESHKA_API_VERSION", "LK/1.8.12")
 	cfg.Ueshka.Token = getEnvOrError("UESHKA_TOKEN")
 	cfg.Ueshka.PupilID = getEnvOrError("UESHKA_PUPIL_ID")
