@@ -7,21 +7,28 @@ import (
 	"ueshka/ueshka"
 )
 
+var (
+	today = time.Now().Format("2006-01-02")
+)
+
 func genUniqID(date string, o ueshka.Operation) string {
 	return date + o.Time
 }
 
 func runDaemon(d time.Duration, c *ueshka.Client, cfg *AppConfig, repo *storage.Memory) {
+	log.Printf("collecting data every %s", d)
 	for {
 		select {
-		case <-time.Tick(d):
-			log.Printf("starting collect after %s", d)
+		case <-time.Tick(1 * time.Hour):
+			today = time.Now().Format("2006-01-02")
 
-			today := time.Now().Format("2006-01-02")
+		case <-time.Tick(d):
+			log.Println("starting collect after:", d)
 
 			stats, err := c.GetDailyStat(cfg.Ueshka.PupilID, today, today)
 			if err != nil {
-				log.Fatal(err)
+				log.Println("fault get statistic err:", err)
+				continue
 			}
 
 			for date, operations := range stats {
@@ -35,13 +42,13 @@ func runDaemon(d time.Duration, c *ueshka.Client, cfg *AppConfig, repo *storage.
 
 					msg := cfg.gate.RenderMessage(&op)
 					if err := cfg.gate.Send(msg); err != nil {
-						log.Fatal(err)
+						log.Println("fault send message err:", err)
 					}
 					repo.Add(uid)
 				}
 			}
 
-			log.Print("end collecting after")
+			log.Print("end collecting")
 		}
 	}
 }
