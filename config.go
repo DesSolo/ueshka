@@ -1,8 +1,10 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"time"
 	"ueshka/gate"
 	"ueshka/logging"
@@ -20,6 +22,24 @@ type AppConfig struct {
 	Logger        *logging.Logger
 
 	gate gate.Sender
+}
+
+// NewAppConfigFromFile ...
+func NewAppConfigFromFile(file string) *AppConfig {
+	body, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.Fatal("fault read config file err:", err)
+	}
+
+	for _, line := range strings.Split(string(body), "\n") {
+		l := strings.Split(line, "=")
+		if len(l) != 2 {
+			continue
+		}
+		os.Setenv(l[0], strings.Trim(l[1], "\""))
+	}
+
+	return NewAppConfigFromEnv()
 }
 
 // NewAppConfigFromEnv ...

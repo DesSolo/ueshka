@@ -1,29 +1,39 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"time"
 	"ueshka/storage"
 	"ueshka/ueshka"
 )
 
 var (
-	today = time.Now().Format("2006-01-02")
+	configFile string
 )
 
 func genUniqID(date string, o ueshka.Operation) string {
 	return date + o.Time
 }
 
-func runDaemon(d time.Duration, c *ueshka.Client, cfg *AppConfig, repo *storage.Memory) {
-	cfg.Logger.Info("collecting data every", d)
+func runDaemon(cfg *AppConfig, c *ueshka.Client, repo *storage.Memory) {
+	b := context.Background()
+	ctx, close := context.WithCancel(b)
+	defer close()
+
+	cfg.Logger.Info("collecting data every", cfg.CheckInterval)
+
+	today := time.Now().Format("2006-01-02")
 
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-time.Tick(1 * time.Hour):
 			today = time.Now().Format("2006-01-02")
 
-		case <-time.Tick(d):
-			cfg.Logger.Debug("starting collect after:", d)
+		case <-time.Tick(cfg.CheckInterval):
+			cfg.Logger.Debug("starting collect after:", cfg.CheckInterval)
 
 			stats, err := c.GetDailyStat(cfg.Ueshka.PupilID, today, today)
 			if err != nil {
@@ -56,17 +66,23 @@ func runDaemon(d time.Duration, c *ueshka.Client, cfg *AppConfig, repo *storage.
 	}
 }
 
+func init() {
+	flag.StringVar(&configFile, "f", "", "config file")
+}
+
 func main() {
-	cfg := NewAppConfigFromEnv()
+	flag.Parse()
+
+	cfg := &AppConfig{}
+	if configFile == "" {
+		cfg = NewAppConfigFromEnv()
+	} else {
+		cfg = NewAppConfigFromFile(configFile)
+	}
 
 	client := ueshka.NewClient(cfg.Ueshka.VersionAPI, cfg.Ueshka.Token)
 
 	repo := storage.NewMemory()
 
-	runDaemon(
-		cfg.CheckInterval,
-		client,
-		NewAppConfigFromEnv(),
-		repo,
-	)
+	runDaemon(cfg, client, repo)
 }
